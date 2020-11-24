@@ -42,8 +42,6 @@ private let log = Logger.browserLogger
 private let defaultErrorCode = U2FErrorCodes.ok.rawValue
 private let authSuccess = -1
 
-private let messageHandlerToken = UserScriptManager.messageHandlerToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
-
 private let signRequest = "u2f_sign_request"
 private let registerRequest = "u2f_register_request"
 
@@ -512,7 +510,7 @@ class U2FExtensions: NSObject {
         }
         cleanupFIDO2Registration(handle: handle)
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "navigator.credentials.postCreate", args: [handle, "true", credentialIdString, attestationString, clientDataJSON, "", ""], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "navigator.credentials.postCreate", args: [handle, "true", credentialIdString, attestationString, clientDataJSON, "", ""], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                     log.error(errorDescription)
@@ -584,7 +582,7 @@ class U2FExtensions: NSObject {
     private func sendFIDO2RegistrationError(handle: Int, errorName: String = FIDO2ErrorMessages.NotAllowedError.rawValue, errorDescription: String = Strings.U2FRegistrationError) {
         cleanupFIDO2Registration(handle: handle)
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "navigator.credentials.postCreate", args: [handle, "true", "", "", "", errorName.toBase64(), errorDescription.toBase64()], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "navigator.credentials.postCreate", args: [handle, "true", "", "", "", errorName.toBase64(), errorDescription.toBase64()], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                     log.error(errorDescription)
@@ -741,7 +739,7 @@ class U2FExtensions: NSObject {
         
         cleanupFIDO2Authentication(handle: handle)
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "navigator.credentials.postGet", args: [handle, "true", requestId, authenticatorData, clientDataJSONString, sig, userHandle], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "navigator.credentials.postGet", args: [handle, "true", requestId, authenticatorData, clientDataJSONString, sig, userHandle], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                     log.error(errorDescription)
@@ -812,7 +810,7 @@ class U2FExtensions: NSObject {
     private func sendFIDO2AuthenticationError(handle: Int, errorName: String = FIDO2ErrorMessages.NotAllowedError.rawValue, errorDescription: String = Strings.U2FAuthenticationError) {
         cleanupFIDO2Authentication(handle: handle)
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "navigator.credentials.postGet", args: [handle, "true", "", "", "", "", "", errorName.toBase64(), errorDescription.toBase64()], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "navigator.credentials.postGet", args: [handle, "true", "", "", "", "", "", errorName.toBase64(), errorDescription.toBase64()], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorAuthentication.rawValue
                     log.error(errorDescription)
@@ -1006,7 +1004,7 @@ class U2FExtensions: NSObject {
         cleanupFIDORegistration(handle: handle)
         if requestId >= 0 {
             ensureMainThread {
-                self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postLowLevelRegister", args: [requestId, "true", version, registrationData, clientData, defaultErrorCode, ""], completion: { _, error in
+                self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postLowLevelRegister", args: [requestId, "true", version, registrationData, clientData, defaultErrorCode, ""], sandboxed: false, completion: { _, error in
                     if error != nil {
                         let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                         log.error(errorDescription)
@@ -1017,7 +1015,7 @@ class U2FExtensions: NSObject {
         }
 
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postRegister", args: [handle, "true", version, registrationData, clientData, defaultErrorCode, ""], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postRegister", args: [handle, "true", version, registrationData, clientData, defaultErrorCode, ""], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                     log.error(errorDescription)
@@ -1030,7 +1028,7 @@ class U2FExtensions: NSObject {
         cleanupFIDORegistration(handle: handle)
         if requestId >= 0 {
             ensureMainThread {
-                self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postLowLevelRegister", args: [requestId, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], completion: { _, error in
+                self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postLowLevelRegister", args: [requestId, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], sandboxed: false, completion: { _, error in
                     if error != nil {
                         let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                         log.error(errorDescription)
@@ -1041,7 +1039,7 @@ class U2FExtensions: NSObject {
         }
         
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postRegister", args: [handle, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postRegister", args: [handle, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorRegistration.rawValue
                     log.error(errorDescription)
@@ -1159,7 +1157,7 @@ class U2FExtensions: NSObject {
         cleanupFIDOAuthentication(handle: handle)
         if requestId >= 0 {
             ensureMainThread {
-                self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postLowLevelSign", args: [requestId, "true", keyHandle, signature, clientData, defaultErrorCode, ""], completion: { _, error in
+                self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postLowLevelSign", args: [requestId, "true", keyHandle, signature, clientData, defaultErrorCode, ""], sandboxed: false, completion: { _, error in
                     if error != nil {
                         let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorAuthentication.rawValue
                         log.error(errorDescription)
@@ -1170,7 +1168,7 @@ class U2FExtensions: NSObject {
         }
 
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postSign", args: [handle, "true", keyHandle, signature, clientData, defaultErrorCode, ""], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postSign", args: [handle, "true", keyHandle, signature, clientData, defaultErrorCode, ""], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorAuthentication.rawValue
                     log.error(errorDescription)
@@ -1184,7 +1182,7 @@ class U2FExtensions: NSObject {
         
         if requestId >= 0 {
             ensureMainThread {
-                self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postLowLevelSign", args: [requestId, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], completion: { _, error in
+                self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postLowLevelSign", args: [requestId, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], sandboxed: false, completion: { _, error in
                     if error != nil {
                         let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorAuthentication.rawValue
                         log.error(errorDescription)
@@ -1195,7 +1193,7 @@ class U2FExtensions: NSObject {
         }
         
         ensureMainThread {
-            self.tab?.webView?.evaluateSafeJavascript(functionName: "u2f.postSign", args: [handle, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], completion: { _, error in
+            self.tab?.webView?.evaluateSafeJavaScript(functionName: "u2f.postSign", args: [handle, "true", "", "", "", errorCode.rawValue, errorMessage.toBase64()], sandboxed: false, completion: { _, error in
                 if error != nil {
                     let errorDescription = error?.localizedDescription ?? U2FErrorMessages.ErrorAuthentication.rawValue
                     log.error(errorDescription)
@@ -1348,11 +1346,11 @@ extension U2FExtensions: TabContentScript {
     }
     
     func scriptMessageHandlerName() -> String? {
-        return "U2F\(messageHandlerToken)"
+        return "U2F\(UserScriptManager.messageHandlerTokenString)"
     }
     
     func userContentController(_ userContentController: WKUserContentController, didReceiveScriptMessage message: WKScriptMessage) {
-        if message.name == "U2F\(messageHandlerToken)", let body = message.body as? NSDictionary {
+        if message.name == "U2F\(UserScriptManager.messageHandlerTokenString)", let body = message.body as? NSDictionary {
             guard let name = body["name"] as? String, let handle = body["handle"] as? Int else {
                 log.error(U2FErrorMessages.Error)
                 return

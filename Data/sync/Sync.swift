@@ -407,16 +407,14 @@ extension Sync {
             
             /* browser -> webview, sends this to the webview with the data that needs to be synced to the sync server.
              @param {string} categoryName, @param {Array.<Object>} records */
-            let evaluate = "callbackList['send-sync-records'](null, '\(recordType.rawValue)',\(json))"
             DispatchQueue.main.async {
-                self.webView.evaluateJavaScript(evaluate,
-                                                completionHandler: { (result, error) in
-                                                    if let error = error {
-                                                        log.error(error)
-                                                    }
-                                                    
-                                                    completion?(error)
-                })
+                self.webView.evaluateSafeJavaScript(functionName: "callbackList['send-sync-records']", args: ["null", recordType.rawValue, json], sandboxed: false,
+                    completion: { (result, error) in
+                        if let error = error {
+                            log.error(error)
+                        }
+                        completion?(error)
+                    })
             }
             
         }
@@ -426,9 +424,8 @@ extension Sync {
         let deviceId = Device.currentDevice()?.deviceId?.description ?? "null"
         let syncSeed = isInSyncGroup ? "new Uint8Array(\(self.syncSeed!))" : "null"
         
-        let args = "(null, \(syncSeed), \(deviceId), {apiVersion: '\(apiVersion)', serverUrl: '\(serverUrl)', debug:\(isDebug)})"
-        webView.evaluateJavaScript("callbackList['got-init-data']\(args)",
-            completionHandler: { (result, error) in
+        webView.evaluateSafeJavaScript(functionName: "callbackList['got-init-data']", args: ["null", syncSeed, deviceId, "{apiVersion: '\(apiVersion)', serverUrl: '\(serverUrl)', debug:\(isDebug)}"], sandboxed: false,
+            completion: { (result, error) in
                 //                                    print(result)
                 //                                    if error != nil {
                 //                                        print(error)
@@ -446,11 +443,9 @@ extension Sync {
         executeBlockOnReady() {
             
             // Pass in `lastFetch` to get records since that time
-            let evaluate = "callbackList['\(self.syncFetchMethod)'](null, ['\(type.rawValue)'], \(type.lastFetchTimeStamp), \(Sync.recordFetchAmount))"
-            self.webView.evaluateJavaScript(evaluate,
-                                            completionHandler: { (result, error) in
-                                                completion?(error)
-            })
+            self.webView.evaluateSafeJavaScript(functionName: "callbackList['\(self.syncFetchMethod)']", args: ["null", type.rawValue, type.lastFetchTimeStamp, Sync.recordFetchAmount], sandboxed: false, completion: { (result, error) in
+                    completion?(error)
+                })
             
         }
     }
@@ -594,8 +589,8 @@ extension Sync {
             }
 	        
             DispatchQueue.main.async {
-                self.webView.evaluateJavaScript("callbackList['resolve-sync-records'](null, '\(recordType.rawValue)', \(serializedData))",
-                    completionHandler: { (result, error) in })
+                self.webView.evaluateSafeJavaScript(functionName: "callbackList['resolve-sync-records']", args: ["null", recordType.rawValue, serializedData], sandboxed: false,
+                    completion: { (result, error) in })
             }
         }
     }

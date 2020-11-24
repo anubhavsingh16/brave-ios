@@ -5,7 +5,7 @@
 var $<windowRenderer> = (function() {
     function postMessage(msg) {
         if (msg) {
-            webkit.messageHandlers.resourceDownloadManager.postMessage(msg);
+            webkit.messageHandlers.$<handler>.postMessage(msg);
         }
     }
                          

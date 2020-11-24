@@ -31,7 +31,7 @@ class MetadataParserHelper: TabEventHandler {
             return
         }
 
-        webView.evaluateJavaScript("__firefox__.metadata && __firefox__.metadata.getMetadata()") { (result, error) in
+        webView.evaluateSafeJavaScript(functionName: "__firefox__.metadata && __firefox__.metadata.getMetadata()", sandboxed: false, asFunction: false, completion: { (result, error) in
             guard error == nil else {
                 return
             }
@@ -45,7 +45,7 @@ class MetadataParserHelper: TabEventHandler {
 
             tab.pageMetadata = pageMetadata
             TabEvent.post(.didLoadPageMetadata(pageMetadata), for: tab)
-        }
+        })
     }
 }
 

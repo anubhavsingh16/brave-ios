@@ -15,6 +15,9 @@ class UserScriptManager {
     
     // Ensures that the message handlers cannot be invoked by the page scripts
     public static let messageHandlerToken = UUID()
+    
+    // String representation of messageHandlerToken
+    public static let messageHandlerTokenString = UserScriptManager.messageHandlerToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
 
     private weak var tab: Tab?
     
@@ -81,6 +84,13 @@ class UserScriptManager {
         }
     }
     
+    public static func isMessageHandlerTokenMissing(in body: [String: Any]) -> Bool {
+        guard let token = body["securitytoken"] as? String, token == UserScriptManager.messageHandlerToken.uuidString else {
+            return true
+        }
+        return false
+    }
+    
     init(tab: Tab, isFingerprintingProtectionEnabled: Bool, isCookieBlockingEnabled: Bool, isU2FEnabled: Bool, isPaymentRequestEnabled: Bool) {
         self.tab = tab
         self.isFingerprintingProtectionEnabled = isFingerprintingProtectionEnabled
@@ -93,16 +103,22 @@ class UserScriptManager {
     // MARK: -
     
     private let packedUserScripts: [WKUserScript] = {
-        [(WKUserScriptInjectionTime.atDocumentStart, mainFrameOnly: false),
-         (WKUserScriptInjectionTime.atDocumentEnd, mainFrameOnly: false),
-         (WKUserScriptInjectionTime.atDocumentStart, mainFrameOnly: true),
-         (WKUserScriptInjectionTime.atDocumentEnd, mainFrameOnly: true)].compactMap { arg in
-            let (injectionTime, mainFrameOnly) = arg
-            let name = (mainFrameOnly ? "MainFrame" : "AllFrames") + "AtDocument" + (injectionTime == .atDocumentStart ? "Start" : "End")
+        [(WKUserScriptInjectionTime.atDocumentStart, mainFrameOnly: false, sandboxed: false),
+         (WKUserScriptInjectionTime.atDocumentEnd, mainFrameOnly: false, sandboxed: false),
+         (WKUserScriptInjectionTime.atDocumentEnd, mainFrameOnly: false, sandboxed: true),
+         (WKUserScriptInjectionTime.atDocumentStart, mainFrameOnly: true, sandboxed: false),
+         (WKUserScriptInjectionTime.atDocumentEnd, mainFrameOnly: true, sandboxed: false)].compactMap { arg in
+            let (injectionTime, mainFrameOnly, sandboxed) = arg
+            let name = (mainFrameOnly ? "MainFrame" : "AllFrames") + "AtDocument" + (injectionTime == .atDocumentStart ? "Start" : "End") + (sandboxed ? "Sandboxed" : "")
             if let path = Bundle.main.path(forResource: name, ofType: "js"),
                 let source = try? NSString(contentsOfFile: path, encoding: String.Encoding.utf8.rawValue) as String {
-                let wrappedSource = "(function() { const SECURITY_TOKEN = '\(UserScriptManager.securityToken)'; \(source) })()"
-                return WKUserScript(source: wrappedSource, injectionTime: injectionTime, forMainFrameOnly: mainFrameOnly)
+                let wrappedSource = "(function() { const SECURITY_TOKEN = '\(UserScriptManager.messageHandlerToken)'; \(source) })()"
+
+                if sandboxed {
+                    return WKUserScript.createInDefaultContentWorld(source: wrappedSource, injectionTime: injectionTime, forMainFrameOnly: mainFrameOnly)
+                } else {
+                    return WKUserScript(source: wrappedSource, injectionTime: injectionTime, forMainFrameOnly: mainFrameOnly)
+                }
             }
             return nil
         }
@@ -113,7 +129,9 @@ class UserScriptManager {
             log.error("Failed to load fingerprinting protection user script")
             return nil
         }
-        return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        var alteredSource = source
+        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "FingerprintingProtection\(messageHandlerTokenString)", options: .literal)
+        return WKUserScript(source: alteredSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }()
     
     private let cookieControlUserScript: WKUserScript? = {
@@ -140,7 +158,6 @@ class UserScriptManager {
         
         var alteredSource = source
         let token = UserScriptManager.securityToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
-        let messageHandlerToken = UserScriptManager.messageHandlerToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
         
         alteredSource = alteredSource.replacingOccurrences(of: "$<webauthn>", with: "fido2\(token)", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<u2f>", with: "fido\(token)", options: .literal)
@@ -149,7 +166,7 @@ class UserScriptManager {
         alteredSource = alteredSource.replacingOccurrences(of: "$<attest>", with: "attest\(token)", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<u2fregister>", with: "u2fregister\(token)", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<u2fsign>", with: "u2fsign\(token)", options: .literal)
-        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "U2F\(messageHandlerToken)", options: .literal)
+        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "U2F\(messageHandlerTokenString)", options: .literal)
         
         return WKUserScript(source: alteredSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }()
@@ -164,10 +181,12 @@ class UserScriptManager {
         
         var alteredSource = source
         let token = UserScriptManager.securityToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
+        
         alteredSource = alteredSource.replacingOccurrences(of: "$<paymentreq>", with: "PaymentRequest\(token)", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<paymentresponse>", with: "PaymentResponse\(token)", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<paymentresponsedetails>", with: "PaymentResponseDetails\(token)", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<paymentreqcallback>", with: "PaymentRequestCallback\(token)", options: .literal)
+        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "PaymentRequest\(messageHandlerTokenString)", options: .literal)
         
         return WKUserScript(source: alteredSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }()
@@ -181,12 +200,11 @@ class UserScriptManager {
         }
         var alteredSource = source
         let token = UserScriptManager.securityToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
-        let handlerToken = UserScriptManager.messageHandlerToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
 
         alteredSource = alteredSource.replacingOccurrences(of: "$<u2f>", with: "U\(token)", options: .literal)
-        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "handler\(handlerToken)", options: .literal)
+        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "U2F\(messageHandlerTokenString)", options: .literal)
 
-        return WKUserScript(source: alteredSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+        return WKUserScript(source: alteredSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }()
     
     private let resourceDownloadManagerUserScript: WKUserScript? = {
@@ -195,15 +213,16 @@ class UserScriptManager {
             return nil
         }
         var alteredSource: String = source
-        
+
         //Verify that the application itself is making a call to the JS script instead of other scripts on the page.
         //This variable will be unique amongst scripts loaded in the page.
         //When the script is called, the token is provided in order to access teh script variable.
         let token = UserScriptManager.securityToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
         alteredSource = alteredSource.replacingOccurrences(of: "$<downloadManager>", with: "D\(token)", options: .literal)
+        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "ResourceDownloadManager\(messageHandlerTokenString)", options: .literal)
         
         return WKUserScript(source: alteredSource, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
-    }()
+    }() 
     
     private let WindowRenderHelperScript: WKUserScript? = {
         guard let path = Bundle.main.path(forResource: "WindowRenderHelper", ofType: "js"), let source = try? String(contentsOfFile: path) else {
@@ -216,7 +235,9 @@ class UserScriptManager {
         //When the script is called, the token is provided in order to access teh script variable.
         var alteredSource = source
         let token = UserScriptManager.securityToken.uuidString.replacingOccurrences(of: "-", with: "", options: .literal)
+        
         alteredSource = alteredSource.replacingOccurrences(of: "$<windowRenderer>", with: "W\(token)", options: .literal)
+        alteredSource = alteredSource.replacingOccurrences(of: "$<handler>", with: "FingerprintingProtection\(messageHandlerTokenString)", options: .literal)
         
         return WKUserScript(source: alteredSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
     }()
@@ -271,7 +292,7 @@ class UserScriptManager {
             if let script = FullscreenHelperScript {
                 $0.addUserScript(script)
             }
-            
+
             if let domainUserScript = domainUserScript, let script = domainUserScript.script {
                 $0.addUserScript(script)
             }

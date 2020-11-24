@@ -2,14 +2,14 @@
 
 "use strict";
 
-if (webkit.messageHandlers.fingerprintingProtection) {
+if (webkit.messageHandlers.$<handler>) {
     install();
 }
 
 function install() {
     function sendMessage(msg) {
         if (msg) {
-            webkit.messageHandlers.fingerprintingProtection.postMessage(msg);
+            webkit.messageHandlers.$<handler>.postMessage(msg);
         }
     }
 
