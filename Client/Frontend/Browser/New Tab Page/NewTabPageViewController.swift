@@ -95,12 +95,12 @@ class NewTabPageViewController: UIViewController, Themeable {
     private var background: NewTabPageBackground
     private let backgroundView = NewTabPageBackgroundView()
     private let backgroundButtonsView = NewTabPageBackgroundButtonsView()
-    
+
     private let feedDataSource: FeedDataSource
     private let feedOverlayView = NewTabPageFeedOverlayView()
     
     private let notifications: NewTabPageNotifications
-    
+
     init(tab: Tab,
          profile: Profile,
          dataSource: NTPDataSource,
@@ -246,7 +246,11 @@ class NewTabPageViewController: UIViewController, Themeable {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
+
+        if let backgroundType = background.currentBackground?.type, case .withBrandLogo(let logo) = backgroundType {
+            rewards.ads.reportNewTabPageAdEvent(background.wallpaperId, logo.creativeInstanceId, .viewed);
+        }
+
 //        presentNotification()
     }
     
@@ -650,6 +654,7 @@ class NewTabPageViewController: UIViewController, Themeable {
     private func tappedSponsorButton(_ logo: NTPLogo) {
         UIImpactFeedbackGenerator(style: .medium).bzzt()
         delegate?.navigateToInput(logo.destinationUrl, inNewTab: false, switchingToPrivateMode: false)
+        rewards.ads.reportNewTabPageAdEvent(background.wallpaperId, logo.creativeInstanceId, .clicked);
     }
     
     private func tappedQRCode(_ code: String) {

@@ -288,6 +288,7 @@ class NTPDownloader {
                                 
                 let logo = sponsor.logo.map {
                     NTPLogo(
+                        creativeInstanceId: $0.creativeInstanceId
                         imageUrl: downloadsFolderURL.appendingPathComponent($0.imageUrl).path,
                         alt: $0.alt,
                         companyName: $0.companyName,

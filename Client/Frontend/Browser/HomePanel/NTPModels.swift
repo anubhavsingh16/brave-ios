@@ -59,13 +59,15 @@ class NTPBackground: Codable {
 }
 
 class NTPLogo: Codable {
+    let creativeInstanceId: String
     let imageUrl: String
     let alt: String
     let companyName: String
     /// Url to take the user to after the logo is tapped.
     let destinationUrl: String
     
-    init(imageUrl: String, alt: String, companyName: String, destinationUrl: String) {
+    init(creativeInstanceId: String, imageUrl: String, alt: String, companyName: String, destinationUrl: String) {
+        self.creativeInstanceId = creativeInstanceId
         self.imageUrl = imageUrl
         self.alt = alt
         self.companyName = companyName
