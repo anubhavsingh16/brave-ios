@@ -142,9 +142,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UIViewControllerRestorati
         }
         
         #if !NO_BRAVE_TODAY
-        if !Preferences.BraveToday.languageChecked.value {
+        if !Preferences.BraveToday.languageChecked.value,
+           let languageCode = Locale.preferredLanguages.first?.prefix(2) {
             Preferences.BraveToday.languageChecked.value = true
-            Preferences.BraveToday.isEnabled.value = Locale.preferredLanguages.first?.prefix(2) == "en"
+            let supportedLanguages = FeedDataSource.supportedLanguages.keys
+            Preferences.BraveToday.isEnabled.value = supportedLanguages.contains(String(languageCode))
         }
         #endif
 
